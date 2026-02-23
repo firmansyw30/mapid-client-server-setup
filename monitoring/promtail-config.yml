@@ -1,0 +1,78 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: https://loki.mapid.io/loki/api/v1/push # Change this to your Loki URL
+    # tenant_id: "your-tenant-id" # Uncomment if using multi-tenant Loki
+
+scrape_configs:
+  # ------------------------------------------------------------------
+  # JOB 1: SYSTEM LOGS (The Host VM)
+  # ------------------------------------------------------------------
+  - job_name: system-logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: varlogs
+          __path__: /var/log/*.log
+
+  # ------------------------------------------------------------------
+  # JOB 2: DOCKER LOGS (Auto-Discovery + Nginx Parsing)
+  # ------------------------------------------------------------------
+  - job_name: docker-logs
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+
+    # RELABELING: This turns the ugly "Docker ID" into a clean "Container Name"
+    relabel_configs:
+      # 1. Attach the container name as a label
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container_name'
+
+      # 2. Construct the path to the log file on the HOST filesystem
+      - source_labels: ['__meta_docker_container_id']
+        target_label: '__path__'
+        replacement: '/var/lib/docker/containers/$1/*.log'
+
+    # PIPELINE: Processing the log lines
+    pipeline_stages:
+      # --- Stage A: Generic Docker JSON Parsing ---
+      # Docker saves logs as JSON ({"log":"...", "stream":"stdout", ...})
+      # We unwrap this so we just get the raw message.
+      - json:
+          expressions:
+            output: log
+            stream: stream
+            attrs:
+
+      # --- Stage B: Nginx Specific Parsing ---
+      # Only run this regex if the container name matches your proxy!
+      - match:
+          selector: '{container_name="main_proxy"}'
+          stages:
+            - regex:
+                # Standard Nginx "Combined" Log Format Regex
+                expression: '^(?P<remote_ip>[\w\.]+) - (?P<remote_user>[^ ]*) \[(?P<time_local>.*)\] "(?P<method>[\w]+) (?P<request>[^ ]*) (?P<protocol>[^ ]*)" (?P<status>[\d]+) (?P<body_bytes_sent>[\d]+) "(?P<http_referer>[^"]*)" "(?P<http_user_agent>[^"]*)"?'
+
+            # Turn these extracted fields into Labels for Grafana
+            - labels:
+                status:
+                method:
+                remote_ip:
+
+            # (Optional) Set the timestamp to the actual request time, not log time
+            - timestamp:
+                source: time_local
+                format: 02/Jan/2006:15:04:05 -0700
+
+      # --- Stage C: General Output ---
+      # Set the log line to the "output" we extracted in Stage A
+      - output:
+          source: output

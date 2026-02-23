@@ -1,0 +1,40 @@
+services:
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: monitoring_node_exporter
+    restart: unless-stopped
+    expose:
+      - 9100
+    ports:
+      - 9100:9100
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.52.1
+    container_name: monitoring_cadvisor
+    restart: unless-stopped
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+      #- /sys/fs/cgroup:/sys/fs/cgroup:ro
+    expose:
+      - 8080
+    ports:
+      - 8080:8080
+
+  promtail:
+    image: grafana/promtail:3.2.1
+    container_name: promtail
+    restart: unless-stopped
+    volumes:
+      - ./promtail-config.yml:/etc/promtail/promtail-config.yml
+      - /etc/promtail:/etc/promtail
+      - /var/log:/var/log:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /tmp:/tmp
+    ports:
+      - "9080:9080"
+    command: -config.file=/etc/promtail/promtail-config.yml

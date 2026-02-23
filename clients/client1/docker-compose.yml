@@ -1,0 +1,64 @@
+services:
+  client-geoserver-nodejs-1:
+    container_name: client-geoserver-nodejs-1
+    image: "392987323540.dkr.ecr.ap-southeast-3.amazonaws.com/dev-mapid-repository-geoserver-nodejs:latest"
+    expose:
+      - "4004"
+    #ports:
+    #  - "4004:4004"
+    env_file:
+      - client-geoserver-nodejs/.env
+    networks:
+      - web_gateway
+      - default
+    deploy:
+      resources:
+        limits:
+          memory: 1600M # Set Limit 2x above reservation
+        reservations:
+          memory: 800M # Set minimum memory 800 MB
+    restart: always
+
+  client-geoserver-bunjs-1:
+    container_name: client-geoserver-bunjs-1
+    image: "392987323540.dkr.ecr.ap-southeast-3.amazonaws.com/dev-mapid-repository-geoserver-bunjs:latest"
+    expose:
+      - "4005"
+    #ports:
+    #  - "4005:4005"
+    env_file:
+      - client-geoserver-bunjs/.env
+    networks:
+      - web_gateway
+      - default
+    deploy:
+      resources:
+        limits:
+          memory: 1600M # Set Limit 2x above reservation
+        reservations:
+          memory: 800M # Set minimum memory 800 MB
+    restart: always
+
+  client-geoserver-nodejs-refactoring-1:
+    container_name: client-geoserver-nodejs-refactoring-1
+    image: "392987323540.dkr.ecr.ap-southeast-3.amazonaws.com/dev-mapid-repository-geoserver-nodejs-refactoring:latest"
+    expose:
+      - "4006"
+    #ports:
+    #  - "4006:4006"
+    env_file:
+      - client-geoserver-nodejs-refactoring/.env
+    networks:
+      - web_gateway
+      - default
+    deploy:
+      resources:
+        limits:
+          memory: 1600M # Set Limit 2x above reservation
+        reservations:
+          memory: 800M # Set minimum memory 800 MB
+    restart: always
+
+networks:
+  web_gateway:
+    external: true
