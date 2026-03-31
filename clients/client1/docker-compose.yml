@@ -61,4 +61,4 @@ services:
 
 networks:
   web_gateway:
-    driver: bridge
+    external: true
